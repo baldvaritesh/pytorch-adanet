@@ -1,0 +1,16 @@
+# Compiled files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Ipython-Checkpoints
+.ipynb_checkpoints
+
+# Virtual Environment Data
+.env
+.venv
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
