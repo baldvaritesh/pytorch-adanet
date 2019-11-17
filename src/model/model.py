@@ -58,7 +58,7 @@ def adanet_loss(output, target, model_depth):
 N, D_in, H, D_out = 60000, 784, 64, 1
 model = TwoLayerNetA(D_in, H, D_out)
 optimizer = torch.optim.SGD(model.parameters(), lr=1e-4)
-for t in range(5000):
+for t in range(300):
     print(t)
     y_p = model(mnist_train.data)
     loss = adanet_loss(y_p, mnist_train.targets, torch.tensor(2, dtype=torch.float))
@@ -70,4 +70,4 @@ for t in range(5000):
     loss.backward()
     optimizer.step()
 
-# print(model.parameters())
+print(model.parameters())
