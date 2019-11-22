@@ -1,6 +1,7 @@
 from __future__ import print_function, division
 
 import torch
+import logging
 import argparse
 
 from tqdm import tqdm
@@ -9,6 +10,8 @@ from torch.nn import functional as F
 
 from includes.models import CNN
 from includes.utils import data_utils
+from includes.optimizers import SGD, DefaultWrapper
+
 
 parser = argparse.ArgumentParser(description="PyTorch MNIST Example")
 parser.add_argument(
@@ -39,6 +42,12 @@ parser.add_argument(
     help="number of epochs to train (default: 14)",
 )
 parser.add_argument(
+    "--optimizer",
+    default="sgd",
+    choices=["sgd", "d-sgd"],
+    help="set optimizer (default: %(default)s)",
+)
+parser.add_argument(
     "--lr", type=float, default=1.0, metavar="LR", help="learning rate (default: 1.0)"
 )
 parser.add_argument(
@@ -57,9 +66,9 @@ parser.add_argument(
 parser.add_argument(
     "--log-interval",
     type=int,
-    default=10,
+    default=0,
     metavar="N",
-    help="how many batches to wait before logging training status",
+    help="how many batches to wait before logging training status (default: 0 = no logging)",
 )
 parser.add_argument(
     "--save-model",
@@ -95,14 +104,19 @@ def main(args):
     if args.load_model:
         model.load_state_dict(torch.load(model_path))
 
-    optimizer = optim.Adadelta(model.parameters(), lr=args.lr)
+    if args.optimizer == "sgd":
+        optimizer = SGD(model, train_loader, lr=args.lr)
+    elif args.optimizer == "d-sgd":
+        optimizer = DefaultWrapper(model, train_loader, optim.SGD, lr=args.lr)
+    else:
+        raise NotImplementedError
 
     with tqdm(range(1, args.epochs + 1)) as bar:
         loss, acc = model.test_step(test_loader, device=device)
         bar.set_postfix({"loss": loss, "acc": acc})
 
         for epoch in bar:
-            model.train_step(train_loader, optimizer, epoch, device=device)
+            model.train_step(optimizer, epoch, device=device, log_interval=args.log_interval)
 
             loss, acc = model.test_step(test_loader, device=device)
             bar.set_postfix({"loss": loss, "acc": acc})
@@ -113,5 +127,13 @@ def main(args):
 
 if __name__ == "__main__":
     args = parser.parse_args()
+
+    logging.basicConfig(
+        filemode="w",
+        filename="app.log",
+        level=logging.INFO,
+        datefmt="%d-%b-%y %H:%M:%S",
+        format="%(asctime)s [%(levelname)s] : %(message)s",
+    )
 
     main(args)

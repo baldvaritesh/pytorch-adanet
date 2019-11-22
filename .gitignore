@@ -18,3 +18,5 @@ venv.bak/
 # Sandbox
 sandbox/models/*
 sandbox/data/*
+
+*.log

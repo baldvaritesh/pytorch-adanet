@@ -1,4 +1,5 @@
 import torch
+import logging
 
 from torch import nn
 
@@ -10,39 +11,13 @@ class Model(nn.Module):
         self.name = name
         self.loss_fn = loss_fn
 
-    def train_step(
-        self,
-        train_loader,
-        optimizer,
-        epoch=1,
-        logger=None,
-        device="cpu",
-        log_interval=100,
-    ):
+    def train_step(self, optimizer, epoch, device="cpu", log_interval=0, **kwargs):
         self.train()
 
-        for batch_idx, (data, target) in enumerate(train_loader):
-            data, target = data.to(device), target.to(device)
+        loss = optimizer.step(device=device, **kwargs)
 
-            optimizer.zero_grad()
-
-            output = self(data)
-
-            loss = self.loss_fn(output, target)
-            loss.backward()
-
-            optimizer.step()
-
-            if logger and batch_idx % log_interval == 0:
-                print(
-                    "Train Epoch: {} [{}/{} ({:.0f}%)]\tLoss: {:.6f}".format(
-                        epoch,
-                        batch_idx * len(data),
-                        len(train_loader.dataset),
-                        100.0 * batch_idx / len(train_loader),
-                        loss.item(),
-                    )
-                )
+        if log_interval > 0 and epoch % log_interval == 0:
+            logging.info("Train Epoch: {:3d} Loss: {:.6f}".format(epoch, loss))
 
     def test_step(self, test_loader, device="cpu", logger=None, log_interval=100):
         self.eval()
