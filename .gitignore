@@ -14,3 +14,7 @@ venv/
 ENV/
 env.bak/
 venv.bak/
+
+# Sandbox
+sandbox/models/*
+sandbox/data/*
