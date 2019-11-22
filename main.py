@@ -25,21 +25,21 @@ parser.add_argument(
     type=int,
     default=64,
     metavar="N",
-    help="input batch size for training (default: 64)",
+    help="input batch size for training (default: %(default)s)",
 )
 parser.add_argument(
     "--test-batch-size",
     type=int,
     default=1000,
     metavar="N",
-    help="input batch size for testing (default: 1000)",
+    help="input batch size for testing (default: %(default)s)",
 )
 parser.add_argument(
     "--epochs",
     type=int,
-    default=14,
+    default=100,
     metavar="N",
-    help="number of epochs to train (default: 14)",
+    help="number of epochs to train (default: %(default)s)",
 )
 parser.add_argument(
     "--optimizer",
@@ -48,7 +48,11 @@ parser.add_argument(
     help="set optimizer (default: %(default)s)",
 )
 parser.add_argument(
-    "--lr", type=float, default=1.0, metavar="LR", help="learning rate (default: 1.0)"
+    "--lr",
+    type=float,
+    default=0.01,
+    metavar="LR",
+    help="learning rate (default: %(default)s)",
 )
 parser.add_argument(
     "--gamma",
@@ -61,14 +65,18 @@ parser.add_argument(
     "--no-cuda", action="store_true", default=False, help="disables CUDA training"
 )
 parser.add_argument(
-    "--seed", type=int, default=1, metavar="S", help="random seed (default: 1)"
+    "--seed",
+    type=int,
+    default=1,
+    metavar="S",
+    help="random seed (default: %(default)s)",
 )
 parser.add_argument(
     "--log-interval",
     type=int,
     default=0,
     metavar="N",
-    help="how many batches to wait before logging training status (default: 0 = no logging)",
+    help="how many batches to wait before logging training status (default: %(default)s = no logging)",
 )
 parser.add_argument(
     "--save-model",
@@ -111,14 +119,20 @@ def main(args):
     else:
         raise NotImplementedError
 
-    with tqdm(range(1, args.epochs + 1)) as bar:
-        loss, acc = model.test_step(test_loader, device=device)
+    with tqdm(range(args.epochs)) as bar:
+        loss, acc = model.test_step(
+            test_loader, 0, device=device, log_interval=args.log_interval
+        )
         bar.set_postfix({"loss": loss, "acc": acc})
 
         for epoch in bar:
-            model.train_step(optimizer, epoch, device=device, log_interval=args.log_interval)
+            model.train_step(
+                optimizer, epoch + 1, device=device, log_interval=args.log_interval
+            )
 
-            loss, acc = model.test_step(test_loader, device=device)
+            loss, acc = model.test_step(
+                test_loader, epoch + 1, device=device, log_interval=args.log_interval
+            )
             bar.set_postfix({"loss": loss, "acc": acc})
 
     if args.save_model:

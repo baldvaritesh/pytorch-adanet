@@ -19,32 +19,29 @@ class Model(nn.Module):
         if log_interval > 0 and epoch % log_interval == 0:
             logging.info("Train Epoch: {:3d} Loss: {:.6f}".format(epoch, loss))
 
-    def test_step(self, test_loader, device="cpu", logger=None, log_interval=100):
+    def test_step(self, data_loader, epoch, device="cpu", log_interval=0):
         self.eval()
 
-        test_loss = 0
+        loss = 0
         correct = 0
         with torch.no_grad():
-            for data, target in test_loader:
+            for data, target in data_loader:
                 data, target = data.to(device), target.to(device)
 
                 output = self(data)
 
-                test_loss += self.loss_fn(output, target, reduction="sum").item()
+                loss += self.loss_fn(output, target, reduction="sum").item()
 
                 pred = output.argmax(dim=1, keepdim=True)
                 correct += pred.eq(target.view_as(pred)).sum().item()
 
-        test_loss /= len(test_loader.dataset)
+        loss /= len(data_loader.dataset)
 
-        if logger:
-            logger.info(
-                "\nTest set: Average loss: {:.4f}, Accuracy: {}/{} ({:.0f}%)\n".format(
-                    test_loss,
-                    correct,
-                    len(test_loader.dataset),
-                    100.0 * correct / len(test_loader.dataset),
+        if log_interval > 0 and epoch % log_interval == 0:
+            logging.info(
+                "Test  Epoch: {:3d}, Loss: {:.6f}, Accuracy: {:.4f}".format(
+                    epoch, loss, 100 * correct / len(data_loader.dataset)
                 )
             )
 
-        return test_loss, correct / len(test_loader.dataset)
+        return loss, correct / len(data_loader.dataset)
