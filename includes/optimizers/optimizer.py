@@ -13,6 +13,10 @@ class Optimizer:
 
         self.current_step = 0
 
+    def update_model(self, model):
+        self.model = model
+        self.params = list(model.parameters())
+
     def step(self):
         raise NotImplementedError
 

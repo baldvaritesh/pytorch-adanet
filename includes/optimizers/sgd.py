@@ -22,11 +22,13 @@ class SGD(Optimizer):
         loss.backward()
 
         for param in self.params:
-            param.data.add_(-self.lr, param.grad.data)
+            if param.grad is not None:
+                # print(param.shape)
+                param.data.add_(-self.lr, param.grad.data)
 
-            if zero_grad:
-                param.grad.detach_()
-                param.grad.zero_()
+                if zero_grad:
+                    param.grad.detach_()
+                    param.grad.zero_()
 
         self.current_step += 1
         if self.decay_rate < 1.0 and self.current_step % self.decay_steps:

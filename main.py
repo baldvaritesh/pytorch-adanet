@@ -8,8 +8,8 @@ from tqdm import tqdm
 from torch import optim
 from torch.nn import functional as F
 
-from includes.models import CNN
 from includes.utils import data_utils
+from includes.models import CNN, AdaNet
 from includes.optimizers import SGD, DefaultWrapper
 
 
@@ -106,7 +106,16 @@ def main(args):
     else:
         raise NotImplementedError
 
-    model = CNN("cnn", loss_fn=F.nll_loss).to(device)
+    # model = CNN("cnn", loss_fn=F.nll_loss).to(device)
+    model = AdaNet(
+        "adanet",
+        loss_fn=F.nll_loss,
+        activation_fn=F.relu,
+        input_dim=784,
+        output_dim=10,
+    )
+
+    model = model.to(device)
 
     model_path = "sandbox/models/{}_{}.pt".format(model.name, args.dataset)
     if args.load_model:
