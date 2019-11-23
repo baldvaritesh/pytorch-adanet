@@ -8,8 +8,8 @@ from tqdm import tqdm
 from torch import optim
 from torch.nn import functional as F
 
-from includes.models import CNN
 from includes.utils import data_utils
+from includes.models import NN, CNN, AdaNet
 from includes.optimizers import SGD, DefaultWrapper
 
 
@@ -18,7 +18,22 @@ parser.add_argument(
     "--dataset",
     default="mnist",
     choices=["mnist"],
-    help="set dataset (default: %(default)s)",
+    help="choose dataset (default: %(default)s)",
+)
+parser.add_argument(
+    "--model",
+    default="adanet",
+    choices=["nn", "cnn", "adanet"],
+    help="choose model (default: %(default)s)",
+)
+parser.add_argument(
+    "--width", default=5, type=int, help="choose model (default: %(default)s)"
+)
+parser.add_argument(
+    "--n-iters",
+    default=5,
+    type=int,
+    help="number of iterations for subnetwork training (default: %(default)s)",
 )
 parser.add_argument(
     "--batch-size",
@@ -55,11 +70,16 @@ parser.add_argument(
     help="learning rate (default: %(default)s)",
 )
 parser.add_argument(
-    "--gamma",
+    "--decay_rate",
     type=float,
-    default=0.7,
-    metavar="M",
-    help="Learning rate step gamma (default: 0.7)",
+    default=0.9,
+    help="Learning rate decay rate (default: %(default)s)",
+)
+parser.add_argument(
+    "--decay_steps",
+    type=int,
+    default=0,
+    help="Learning rate decay steps (default: %(default)s = no decay)",
 )
 parser.add_argument(
     "--no-cuda", action="store_true", default=False, help="disables CUDA training"
@@ -98,46 +118,84 @@ def main(args):
     torch.manual_seed(args.seed)
 
     device = torch.device("cuda" if use_cuda else "cpu")
+    log = args.log_interval > 0
 
     kwargs = {"num_workers": 1, "pin_memory": True} if use_cuda else {}
 
     if args.dataset == "mnist":
         train_loader, test_loader = data_utils.load_mnist(args.batch_size, **kwargs)
+
+        input_dim = 784
+        output_dim = 10
     else:
         raise NotImplementedError
 
-    model = CNN("cnn", loss_fn=F.nll_loss).to(device)
+    if args.model == "cnn":
+        model = CNN("cnn", loss_fn=F.nll_loss)
+    elif args.model == "nn":
+        model = NN("nn", loss_fn=F.nll_loss, input_dim=input_dim, output_dim=output_dim)
+    elif args.model == "adanet":
+        model = AdaNet(
+            "adanet",
+            loss_fn=F.nll_loss,
+            activation_fn=F.relu,
+            input_dim=input_dim,
+            output_dim=output_dim,
+            width=args.width,
+            n_iters=args.n_iters,
+        )
+    else:
+        raise NotImplementedError
+
+    model = model.to(device)
 
     model_path = "sandbox/models/{}_{}.pt".format(model.name, args.dataset)
     if args.load_model:
         model.load_state_dict(torch.load(model_path))
 
     if args.optimizer == "sgd":
-        optimizer = SGD(model, lr=args.lr)
+        optimizer = SGD(
+            model, lr=args.lr, decay_rate=args.decay_rate, decay_steps=args.decay_steps
+        )
     elif args.optimizer == "d-sgd":
         optimizer = DefaultWrapper(model, optim.SGD, lr=args.lr)
     else:
         raise NotImplementedError
 
     with tqdm(range(args.epochs)) as bar:
-        _, acc = model.test_step(
-            test_loader, 0, device=device, log_interval=args.log_interval
-        )
+        _, acc = model.test_step(test_loader, 0, device=device, log=log)
         bar.set_postfix({"acc": acc})
 
+        prev_loss = float("inf")
         for epoch in bar:
             loss = model.train_step(
-                optimizer,
-                train_loader,
-                epoch + 1,
-                device=device,
-                log_interval=args.log_interval,
+                optimizer, train_loader, epoch + 1, device=device, log=log
             )
 
-            _, acc = model.test_step(
-                test_loader, epoch + 1, device=device, log_interval=args.log_interval
-            )
+            if log:
+                if epoch % args.log_interval:
+                    logging.info(
+                        "Train Epoch: {:3d} Loss: {:.6f}".format(epoch + 1, loss)
+                    )
+
+            _, acc = model.test_step(test_loader, epoch + 1, device=device)
             bar.set_postfix({"loss": loss, "acc": acc})
+
+            if log:
+                if epoch % args.log_interval:
+                    logging.info(
+                        "Test  Epoch: {:3d}, Loss: {:.6f}, Accuracy: {:.4f}".format(
+                            epoch + 1, loss, acc
+                        )
+                    )
+
+            if prev_loss - loss < 0.01:
+                if log:
+                    logging.info("Train Epoch: {:3d} STOPPED".format(epoch + 1))
+
+                break
+
+            prev_loss = loss
 
     if args.save_model:
         torch.save(model.state_dict(), model_path)

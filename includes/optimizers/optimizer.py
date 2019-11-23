@@ -10,6 +10,10 @@ class Optimizer:
 
         self.current_step = 0
 
+    def update_model(self, model):
+        self.model = model
+        self.params = list(model.parameters())
+
     def step(self):
         raise NotImplementedError
 
@@ -19,6 +23,9 @@ class DefaultWrapper:
         self.model = model
         self.loss_fn = model.loss_fn
         self.optimizer = optimizer(model.parameters(), **kwargs)
+
+    def update_model(self, model):
+        raise NotImplementedError
 
     def step(self, data, device="cpu"):
         data, target = data[0].to(device), data[1].to(device)

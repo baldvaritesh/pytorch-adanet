@@ -12,7 +12,7 @@ class Model(nn.Module):
         self.loss_fn = loss_fn
 
     def train_step(
-        self, optimizer, data_loader, epoch, device="cpu", log_interval=0, **kwargs
+        self, optimizer, data_loader, epoch, device="cpu", log=False, **kwargs
     ):
         self.train()
 
@@ -21,12 +21,9 @@ class Model(nn.Module):
             loss += optimizer.step(data, device=device, **kwargs)
         loss /= batch_idx
 
-        if log_interval > 0 and epoch % log_interval == 0:
-            logging.info("Train Epoch: {:3d} Loss: {:.6f}".format(epoch, loss))
-
         return loss
 
-    def test_step(self, data_loader, epoch, device="cpu", log_interval=0):
+    def test_step(self, data_loader, epoch, device="cpu", log=False):
         self.eval()
 
         loss = 0
@@ -43,12 +40,5 @@ class Model(nn.Module):
                 correct += pred.eq(target.view_as(pred)).sum().item()
 
         loss /= len(data_loader.dataset)
-
-        if log_interval > 0 and epoch % log_interval == 0:
-            logging.info(
-                "Test  Epoch: {:3d}, Loss: {:.6f}, Accuracy: {:.4f}".format(
-                    epoch, loss, 100 * correct / len(data_loader.dataset)
-                )
-            )
 
         return loss, correct / len(data_loader.dataset)
