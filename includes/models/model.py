@@ -11,13 +11,20 @@ class Model(nn.Module):
         self.name = name
         self.loss_fn = loss_fn
 
-    def train_step(self, optimizer, epoch, device="cpu", log_interval=0, **kwargs):
+    def train_step(
+        self, optimizer, data_loader, epoch, device="cpu", log_interval=0, **kwargs
+    ):
         self.train()
 
-        loss = optimizer.step(device=device, **kwargs)
+        loss = 0
+        for batch_idx, data in enumerate(data_loader):
+            loss += optimizer.step(data, device=device, **kwargs)
+        loss /= batch_idx
 
         if log_interval > 0 and epoch % log_interval == 0:
             logging.info("Train Epoch: {:3d} Loss: {:.6f}".format(epoch, loss))
+
+        return loss
 
     def test_step(self, data_loader, epoch, device="cpu", log_interval=0):
         self.eval()

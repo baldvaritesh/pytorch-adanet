@@ -4,17 +4,11 @@ from .optimizer import Optimizer
 
 
 class SGD(Optimizer):
-    def __init__(self, model, data_loader, lr=0.01, decay_rate=1.0, decay_steps=1000):
-        super(SGD, self).__init__(model, data_loader, lr, decay_rate, decay_steps)
+    def __init__(self, model, lr=0.01, decay_rate=1.0, decay_steps=1000):
+        super(SGD, self).__init__(model, lr, decay_rate, decay_steps)
 
-    def step(self, device="cpu", zero_grad=True):
-        try:
-            data, target = next(self.data_iterator)
-        except StopIteration:
-            self.data_iterator = iter(self.data_loader)
-            data, target = next(self.data_iterator)
-
-        data, target = data.to(device), target.to(device)
+    def step(self, data, device="cpu", zero_grad=True):
+        data, target = data[0].to(device), data[1].to(device)
 
         output = self.model(data)
 

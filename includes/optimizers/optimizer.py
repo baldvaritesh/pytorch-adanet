@@ -1,11 +1,8 @@
 class Optimizer:
-    def __init__(self, model, data_loader, lr, decay_rate, decay_steps):
+    def __init__(self, model, lr, decay_rate, decay_steps):
         self.model = model
         self.loss_fn = model.loss_fn
         self.params = list(model.parameters())
-
-        self.data_loader = data_loader
-        self.data_iterator = iter(self.data_loader)
 
         self.lr = lr
         self.decay_rate = decay_rate
@@ -18,22 +15,13 @@ class Optimizer:
 
 
 class DefaultWrapper:
-    def __init__(self, model, data_loader, optimizer, **kwargs):
-        self.data_loader = data_loader
-        self.data_iterator = iter(self.data_loader)
-
+    def __init__(self, model, optimizer, **kwargs):
         self.model = model
         self.loss_fn = model.loss_fn
         self.optimizer = optimizer(model.parameters(), **kwargs)
 
-    def step(self, device="cpu"):
-        try:
-            data, target = next(self.data_iterator)
-        except StopIteration:
-            self.data_iterator = iter(self.data_loader)
-            data, target = next(self.data_iterator)
-
-        data, target = data.to(device), target.to(device)
+    def step(self, data, device="cpu"):
+        data, target = data[0].to(device), data[1].to(device)
 
         output = self.model(data)
 

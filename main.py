@@ -113,24 +113,28 @@ def main(args):
         model.load_state_dict(torch.load(model_path))
 
     if args.optimizer == "sgd":
-        optimizer = SGD(model, train_loader, lr=args.lr)
+        optimizer = SGD(model, lr=args.lr)
     elif args.optimizer == "d-sgd":
-        optimizer = DefaultWrapper(model, train_loader, optim.SGD, lr=args.lr)
+        optimizer = DefaultWrapper(model, optim.SGD, lr=args.lr)
     else:
         raise NotImplementedError
 
     with tqdm(range(args.epochs)) as bar:
-        loss, acc = model.test_step(
+        _, acc = model.test_step(
             test_loader, 0, device=device, log_interval=args.log_interval
         )
-        bar.set_postfix({"loss": loss, "acc": acc})
+        bar.set_postfix({"acc": acc})
 
         for epoch in bar:
-            model.train_step(
-                optimizer, epoch + 1, device=device, log_interval=args.log_interval
+            loss = model.train_step(
+                optimizer,
+                train_loader,
+                epoch + 1,
+                device=device,
+                log_interval=args.log_interval,
             )
 
-            loss, acc = model.test_step(
+            _, acc = model.test_step(
                 test_loader, epoch + 1, device=device, log_interval=args.log_interval
             )
             bar.set_postfix({"loss": loss, "acc": acc})
