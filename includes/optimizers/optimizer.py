@@ -1,11 +1,11 @@
+from functools import partial
+
+
 class Optimizer:
-    def __init__(self, model, data_loader, lr, decay_rate, decay_steps):
+    def __init__(self, model, lr, decay_rate, decay_steps):
         self.model = model
         self.loss_fn = model.loss_fn
         self.params = list(model.parameters())
-
-        self.data_loader = data_loader
-        self.data_iterator = iter(self.data_loader)
 
         self.lr = lr
         self.decay_rate = decay_rate
@@ -22,13 +22,24 @@ class Optimizer:
 
 
 class DefaultWrapper:
-    def __init__(self, model, data_loader, optimizer, **kwargs):
-        self.data_loader = data_loader
+    def __init__(self, model, optimizer, **kwargs):
         self.data_iterator = iter(self.data_loader)
 
         self.model = model
+        self.params = list(model.parameters())
+
         self.loss_fn = model.loss_fn
-        self.optimizer = optimizer(model.parameters(), **kwargs)
+
+        self.optimizer_fn = partial(optimizer, **kwargs)
+        self.optimizer = optimizer(self.params, **kwargs)
+
+    def update_model(self, model):
+        self.model = model
+        # new_params = [param for param in model.parameters() if param not in self.params]
+        # self.optimizer.add_param_group({"params": new_params})
+        # self.params.extend(new_params)
+
+        self.optimizer = self.optimizer_fn(model.parameters())
 
     def step(self, device="cpu"):
         try:

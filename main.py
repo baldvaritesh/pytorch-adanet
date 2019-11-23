@@ -55,11 +55,18 @@ parser.add_argument(
     help="learning rate (default: %(default)s)",
 )
 parser.add_argument(
-    "--gamma",
+    "--decay-rate",
     type=float,
-    default=0.7,
+    default=0.9,
     metavar="M",
-    help="Learning rate step gamma (default: 0.7)",
+    help="Learning rate step gamma (default: 0.9)",
+)
+parser.add_argument(
+    "--decay-steps",
+    type=int,
+    default=100,
+    metavar="L",
+    help="Learning rate step gamma (default: 100)",
 )
 parser.add_argument(
     "--no-cuda", action="store_true", default=False, help="disables CUDA training"
@@ -106,14 +113,14 @@ def main(args):
     else:
         raise NotImplementedError
 
-    # model = CNN("cnn", loss_fn=F.nll_loss).to(device)
-    model = AdaNet(
-        "adanet",
-        loss_fn=F.nll_loss,
-        activation_fn=F.relu,
-        input_dim=784,
-        output_dim=10,
-    )
+    model = CNN("cnn", loss_fn=F.nll_loss).to(device)
+    # model = AdaNet(
+    # "adanet",
+    # loss_fn=F.nll_loss,
+    # activation_fn=F.relu,
+    # input_dim=784,
+    # output_dim=10,
+    # )
 
     model = model.to(device)
 
@@ -122,9 +129,11 @@ def main(args):
         model.load_state_dict(torch.load(model_path))
 
     if args.optimizer == "sgd":
-        optimizer = SGD(model, train_loader, lr=args.lr)
+        optimizer = SGD(
+            model, lr=args.lr, decay_rate=args.decay_rate, decay_steps=args.decay_steps
+        )
     elif args.optimizer == "d-sgd":
-        optimizer = DefaultWrapper(model, train_loader, optim.SGD, lr=args.lr)
+        optimizer = DefaultWrapper(model, optim.SGD, lr=args.lr)
     else:
         raise NotImplementedError
 
@@ -135,11 +144,15 @@ def main(args):
         bar.set_postfix({"loss": loss, "acc": acc})
 
         for epoch in bar:
-            model.train_step(
-                optimizer, epoch + 1, device=device, log_interval=args.log_interval
+            loss = model.train_step(
+                optimizer,
+                train_loader,
+                epoch + 1,
+                device=device,
+                log_interval=args.log_interval,
             )
 
-            loss, acc = model.test_step(
+            _, acc = model.test_step(
                 test_loader, epoch + 1, device=device, log_interval=args.log_interval
             )
             bar.set_postfix({"loss": loss, "acc": acc})

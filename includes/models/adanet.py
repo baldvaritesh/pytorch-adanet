@@ -82,7 +82,7 @@ class Network(nn.Module):
 
 
 class AdaNet(Model):
-    def __init__(self, name, loss_fn, activation_fn, input_dim, output_dim, width=1):
+    def __init__(self, name, loss_fn, activation_fn, input_dim, output_dim, width=5):
         super(AdaNet, self).__init__(name, loss_fn)
 
         self.width = width
@@ -104,7 +104,7 @@ class AdaNet(Model):
     def train_subnetwork(
         self, subnetwork, optimizer, epoch, n_iters=100, device="cpu", **kwargs
     ):
-        self.network.detach()
+        # self.network.detach()
 
         class Wrapper(nn.Module):
             def __init__(self, net, subnet, input_dim):
@@ -162,11 +162,11 @@ class AdaNet(Model):
         )
 
     def train_step(
-        self, optimizer, epoch, n_iters=100, device="cpu", log_interval=0, **kwargs
+        self, optimizer, epoch, n_iters=1000, device="cpu", log_interval=0, **kwargs
     ):
         self.train()
 
-        subnet = self.generate_subnetwork(2)
+        subnet = self.generate_subnetwork(3)
         self.train_subnetwork(subnet, optimizer, epoch, n_iters, device)
         self.add_subnetwork(subnet)
 
