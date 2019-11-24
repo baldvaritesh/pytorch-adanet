@@ -8,6 +8,7 @@ from torch.nn import functional as F
 
 from .model import Model
 from ..optimizers import SGD
+from ..utils import RademacherComplexity
 
 
 class Layer(nn.Module):
@@ -82,7 +83,16 @@ class Network(nn.Module):
 
 class AdaNet(Model):
     def __init__(
-        self, name, loss_fn, activation_fn, input_dim, output_dim, width, n_iters
+        self,
+        name,
+        loss_fn,
+        activation_fn,
+        input_dim,
+        output_dim,
+        width,
+        n_iters,
+        regularizer=None,
+        input_max=None,
     ):
         super(AdaNet, self).__init__(name, loss_fn)
 
@@ -91,6 +101,20 @@ class AdaNet(Model):
         self.input_dim = input_dim
         self.output_dim = output_dim
         self.activation_fn = activation_fn
+
+        if regularizer:
+            if isinstance(regularizer, RademacherComplexity):
+                if input_max is None:
+                    raise ValueError(
+                        "The argument input_max cannot be None if loss_fn is an instance of RademacherComplexity"
+                    )
+                self.loss_fn = RademacherComplexity(self, loss_fn, input_dim, input_max)
+            else:
+                raise ValueError(
+                    "regularizer must be an instance of RademacherComplexity"
+                )
+        else:
+            self.loss_fn = loss_fn
 
         self.network = Network(
             activation_fn, input_dim, [(input_dim, width)], output_dim
@@ -137,6 +161,8 @@ class AdaNet(Model):
                 return output
 
         comb = Wrapper(self.network, subnetwork, self.input_dim).to(device)
+        if isinstance(self.loss_fn, RademacherComplexity):
+            self.loss_fn.update_parameters(comb)
         optimizer.update_model(comb)
 
         for i in range(self.n_iters):

@@ -3,7 +3,7 @@ import numpy as np
 
 
 class RademacherComplexity:
-    def __init__(self, layers, batch_dim, batch_max, dual=2, gamma=None):
+    def __init__(self, model, input_dim, input_max, dual=2, gamma=1.0, lmbda=1.0):
         """
         Params to define Rademacher complexity for the nn module
         :param layers: Input Dimensions for every layer
@@ -15,53 +15,53 @@ class RademacherComplexity:
         if layers is None or batch_dim is None or len(layers) == 0:
             logging.error("Initializing Radmacher complexity with invalid values")
             raise ValueError
-        self._layers = layers
-        self._batch_dim = batch_dim
-        self._r_infty = batch_max
+
         self._dual = dual
-        if gamma is None:
-            self._gamma = 1.0
-        else:
-            self._gamma = gamma
-        self._candidate_nodes_product_per_layer = None
-        self._nodes_product_per_layer = None
+        self._model = model
+        self._r_infty = input_max
+        self._batch_dim = input_dim
+        self._gamma = gamma
+        self.n_k = [input_dim[1]]
 
-    def initialize_candidate(self, new_layer_dims):
-        """
-        Initializes new architecture based on the dimensions given
-        :param new_layer_dims: the new subnetwork of dimensions being added to network
-        :return: None
-        """
-        self._candidate_nodes_product_per_layer = [self._batch_dim[1]]
-        count = self._batch_dim[1]
-        new_layer_width, new_layer_depth = new_layer_dims
-        for layer in range(len(self._layers)):
-            if new_layer_depth > 0:
-                count *= self._layers[layer] + new_layer_width
-            else:
-                count *= self._layers[layer]
-            new_layer_depth -= 1
-            self._candidate_nodes_product_per_layer.append(count)
-        while new_layer_depth is not 0:
-            count *= new_layer_width
-            self._candidate_nodes_product_per_layer.append(count)
-            new_layer_depth -= 1
-
-    def get_candidate_nodes_per_layer(self):
-        return self._candidate_nodes_product_per_layer
-
-    def set_nodes_product_per_layer(self, chosen_candidate_nodes_per_layer):
-        self._nodes_product_per_layer = chosen_candidate_nodes_per_layer
-
-    def calculate_complexity(self, layer, candidate=True):
-        n_layer = None
-        if candidate:
-            n_layer = self._candidate_nodes_product_per_layer[layer - 1]
-        else:
-            n_layer = self._nodes_product_per_layer[layer - 1]
+    def calculate_complexity(self, n_layer):
         return (
             self._r_infty
             * self._gamma
             * np.power(n_layer, 1 / self._dual)
             * np.sqrt(np.log(2 * self._batch_dim[1]) / (2 * self._batch_dim[0]))
         )
+
+    def update_parameters(self, model):
+        self._model = model
+
+        self.n_k = [self._batch_dim[1]]
+        for i in range(len(model.net.layers)):
+            layer_n_k.append(
+                (model.net.layers[i][0] + model.subnet.layers[i][0]) * layer_n_k[i]
+            )
+
+        if len(model.subnet.layers) > len(model.net.layers):
+            layer_n_k.append(model.subnet.layers[-1][0] * layer_n_k[-1])
+
+    def total_complexity(self):
+        comp = 0
+        n = len(self.model.net.layers)
+        start = 0
+        end = self.model.net.exposed[0]
+        for i in range(n):
+            comp += torch.sum(
+                torch.abs(self._model.net.weights[start:end])
+            ) * self.calculate_complexity(self.n_k[i])
+
+            start = self.model.net.exposed[i]
+            end = start + self.model.net.exposed[(i + 1) % n]
+
+        comp += torch.sum(
+            torch.abs(self._model.subnet.weights)
+        ) * self.calculate_complexity(self.n_k[-1])
+
+        return comp
+
+    def __call__(self, output, target):
+
+        return self.loss_fn(output, target) + self.total_complexity()

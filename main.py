@@ -8,9 +8,9 @@ from tqdm import tqdm
 from torch import optim
 from torch.nn import functional as F
 
-from includes.utils import data_utils
 from includes.models import NN, CNN, AdaNet
 from includes.optimizers import SGD, DefaultWrapper
+from includes.utils import load_mnist, RademacherComplexity
 
 
 parser = argparse.ArgumentParser(description="PyTorch MNIST Example")
@@ -123,7 +123,7 @@ def main(args):
     kwargs = {"num_workers": 1, "pin_memory": True} if use_cuda else {}
 
     if args.dataset == "mnist":
-        train_loader, test_loader = data_utils.load_mnist(args.batch_size, **kwargs)
+        train_loader, test_loader, input_max = load_mnist(args.batch_size, **kwargs)
 
         input_dim = 784
         output_dim = 10
@@ -143,6 +143,8 @@ def main(args):
             output_dim=output_dim,
             width=args.width,
             n_iters=args.n_iters,
+            regularizer=None,
+            input_max=input_max,
         )
     else:
         raise NotImplementedError
@@ -173,7 +175,7 @@ def main(args):
             )
 
             if log:
-                if epoch % args.log_interval:
+                if epoch % args.log_interval == 0:
                     logging.info(
                         "Train Epoch: {:3d} Loss: {:.6f}".format(epoch + 1, loss)
                     )
@@ -182,7 +184,7 @@ def main(args):
             bar.set_postfix({"loss": loss, "acc": acc})
 
             if log:
-                if epoch % args.log_interval:
+                if epoch % args.log_interval == 0:
                     logging.info(
                         "Test  Epoch: {:3d}, Loss: {:.6f}, Accuracy: {:.4f}".format(
                             epoch + 1, loss, acc
