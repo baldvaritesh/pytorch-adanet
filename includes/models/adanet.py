@@ -254,7 +254,7 @@ class AdaNet(Model):
         self.add_subnetwork(candidate_networks[best_subnet])
         self.to(device)
 
-        self.width = min(self.width * 2, 128)
+        self.width = self.width * 2
 
         return losses[best_subnet]
 

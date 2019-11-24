@@ -10,14 +10,14 @@ from torch.nn import functional as F
 
 from includes.models import NN, CNN, AdaNet
 from includes.optimizers import SGD, DefaultWrapper
-from includes.utils import load_mnist, RademacherComplexity
+from includes.utils import load_mnist, load_cifar, RademacherComplexity
 
 
 parser = argparse.ArgumentParser(description="PyTorch MNIST Example")
 parser.add_argument(
     "--dataset",
     default="mnist",
-    choices=["mnist"],
+    choices=["mnist", "cifar"],
     help="choose dataset (default: %(default)s)",
 )
 parser.add_argument(
@@ -139,6 +139,13 @@ def main(args):
 
         input_dim = 784
         output_dim = 10
+
+    elif args.dataset == "cifar":
+        train_loader, test_loader, r_inf = load_cifar(args.batch_size, **kwargs)
+
+        input_dim = 3072
+        output_dim = 10
+
     else:
         raise NotImplementedError
 
