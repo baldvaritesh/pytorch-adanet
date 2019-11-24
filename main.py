@@ -57,6 +57,12 @@ parser.add_argument(
     help="number of epochs to train (default: %(default)s)",
 )
 parser.add_argument(
+    "--tolerance",
+    type=float,
+    default=0.01,
+    help="convergence tolerance (default: %(default)s)",
+)
+parser.add_argument(
     "--optimizer",
     default="sgd",
     choices=["sgd", "d-sgd"],
@@ -73,13 +79,19 @@ parser.add_argument(
     "--decay_rate",
     type=float,
     default=0.9,
-    help="Learning rate decay rate (default: %(default)s)",
+    help="learning rate decay rate (default: %(default)s)",
 )
 parser.add_argument(
     "--decay_steps",
     type=int,
     default=0,
-    help="Learning rate decay steps (default: %(default)s = no decay)",
+    help="learning rate decay steps (default: %(default)s = no decay)",
+)
+parser.add_argument(
+    "--gamma",
+    type=float,
+    default=1e-4,
+    help="regularization constant (default: %(default)s)",
 )
 parser.add_argument(
     "--no-cuda", action="store_true", default=False, help="disables CUDA training"
@@ -145,6 +157,7 @@ def main(args):
             n_iters=args.n_iters,
             regularizer=RademacherComplexity,
             r_inf=r_inf,
+            gamma=args.gamma,
             batch_size=args.batch_size,
         )
     else:
@@ -192,7 +205,7 @@ def main(args):
                         )
                     )
 
-            if prev_loss - loss < 0.01:
+            if prev_loss - loss < args.tolerance:
                 if log:
                     logging.info("Train Epoch: {:3d} STOPPED".format(epoch + 1))
 

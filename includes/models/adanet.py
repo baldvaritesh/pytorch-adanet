@@ -94,6 +94,7 @@ class AdaNet(Model):
         regularizer=None,
         r_inf=None,
         batch_size=None,
+        gamma=1e-4,
     ):
         super(AdaNet, self).__init__(name, loss_fn)
 
@@ -118,6 +119,7 @@ class AdaNet(Model):
                     dims=(batch_size, input_dim),
                     r_inf=r_inf,
                     loss_fn=loss_fn,
+                    gamma=gamma,
                 )
             else:
                 raise ValueError(
