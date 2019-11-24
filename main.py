@@ -143,8 +143,9 @@ def main(args):
             output_dim=output_dim,
             width=args.width,
             n_iters=args.n_iters,
-            regularizer=None,
+            regularizer=RademacherComplexity(),
             input_max=input_max,
+            batch_size=args.batch_size,
         )
     else:
         raise NotImplementedError

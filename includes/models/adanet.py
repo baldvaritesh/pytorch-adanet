@@ -93,6 +93,7 @@ class AdaNet(Model):
         n_iters,
         regularizer=None,
         input_max=None,
+        batch_size=64,
     ):
         super(AdaNet, self).__init__(name, loss_fn)
 
@@ -101,14 +102,18 @@ class AdaNet(Model):
         self.input_dim = input_dim
         self.output_dim = output_dim
         self.activation_fn = activation_fn
-
         if regularizer:
             if isinstance(regularizer, RademacherComplexity):
                 if input_max is None:
                     raise ValueError(
                         "The argument input_max cannot be None if loss_fn is an instance of RademacherComplexity"
                     )
-                self.loss_fn = RademacherComplexity(self, loss_fn, input_dim, input_max)
+                self.loss_fn = RademacherComplexity(
+                    model=self,
+                    input_dim=(batch_size, input_dim),
+                    input_max=input_max,
+                    loss_fn=loss_fn,
+                )
             else:
                 raise ValueError(
                     "regularizer must be an instance of RademacherComplexity"
@@ -181,7 +186,6 @@ class AdaNet(Model):
             for i in range(len(layers)):
                 layer = layers[i]
                 sublayer = sublayers[i]
-
                 padding = torch.zeros(
                     (sublayer.W.shape[0] - layer.W.shape[0], layer.W.shape[1])
                 )
@@ -216,6 +220,8 @@ class AdaNet(Model):
 
             return loss
 
+        if isinstance(self.loss_fn, RademacherComplexity):
+            self.loss_fn.set_subnets()
         k = len(self.network.layers)
         candidate_networks = [self.generate_subnetwork(depth) for depth in [k, k + 1]]
 
@@ -228,7 +234,7 @@ class AdaNet(Model):
         best_subnet = np.argmin(losses)
 
         if self.prev_loss < losses[best_subnet]:
-            return prev_loss
+            return self.prev_loss
 
         if log:
             for i in range(len(candidate_networks)):
