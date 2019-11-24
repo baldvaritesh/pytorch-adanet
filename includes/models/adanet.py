@@ -92,8 +92,8 @@ class AdaNet(Model):
         width,
         n_iters,
         regularizer=None,
-        input_max=None,
-        batch_size=64,
+        r_inf=None,
+        batch_size=None,
     ):
         super(AdaNet, self).__init__(name, loss_fn)
 
@@ -103,15 +103,20 @@ class AdaNet(Model):
         self.output_dim = output_dim
         self.activation_fn = activation_fn
         if regularizer:
-            if isinstance(regularizer, RademacherComplexity):
-                if input_max is None:
+            if regularizer == RademacherComplexity:
+                if r_inf is None:
                     raise ValueError(
-                        "The argument input_max cannot be None if loss_fn is an instance of RademacherComplexity"
+                        "The argument r_inf cannot be None if regularizer is RademacherComplexity"
                     )
+                if batch_size is None:
+                    raise ValueError(
+                        "The argument batch_size cannot be None if regularizer is RademacherComplexity"
+                    )
+
                 self.loss_fn = RademacherComplexity(
                     model=self,
-                    input_dim=(batch_size, input_dim),
-                    input_max=input_max,
+                    dims=(batch_size, input_dim),
+                    r_inf=r_inf,
                     loss_fn=loss_fn,
                 )
             else:
@@ -165,10 +170,12 @@ class AdaNet(Model):
 
                 return output
 
-        comb = Wrapper(self.network, subnetwork, self.input_dim).to(device)
+        model = Wrapper(self.network, subnetwork, self.input_dim).to(device)
+
         if isinstance(self.loss_fn, RademacherComplexity):
-            self.loss_fn.update_parameters(comb)
-        optimizer.update_model(comb)
+            self.loss_fn.update_complexities(subnetwork)
+
+        optimizer.update_model(model)
 
         for i in range(self.n_iters):
             loss = 0
@@ -220,8 +227,6 @@ class AdaNet(Model):
 
             return loss
 
-        if isinstance(self.loss_fn, RademacherComplexity):
-            self.loss_fn.set_subnets()
         k = len(self.network.layers)
         candidate_networks = [self.generate_subnetwork(depth) for depth in [k, k + 1]]
 

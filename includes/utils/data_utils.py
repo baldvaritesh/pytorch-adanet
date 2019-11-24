@@ -19,9 +19,9 @@ def load_mnist(batch_size, path="sandbox/data", shuffle=True, **kwargs):
         **kwargs
     )
 
-    input_max = float("-inf")
+    r_inf = float("-inf")
     for data, _ in train_loader:
-        input_max = max(torch.max(torch.abs(data)).item(), input_max)
+        r_inf = max(torch.max(torch.abs(data)).item(), r_inf)
 
     test_loader = DataLoader(
         datasets.MNIST(
@@ -37,4 +37,4 @@ def load_mnist(batch_size, path="sandbox/data", shuffle=True, **kwargs):
         **kwargs
     )
 
-    return train_loader, test_loader, input_max
+    return train_loader, test_loader, r_inf

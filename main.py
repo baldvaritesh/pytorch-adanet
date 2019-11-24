@@ -123,7 +123,7 @@ def main(args):
     kwargs = {"num_workers": 1, "pin_memory": True} if use_cuda else {}
 
     if args.dataset == "mnist":
-        train_loader, test_loader, input_max = load_mnist(args.batch_size, **kwargs)
+        train_loader, test_loader, r_inf = load_mnist(args.batch_size, **kwargs)
 
         input_dim = 784
         output_dim = 10
@@ -143,8 +143,8 @@ def main(args):
             output_dim=output_dim,
             width=args.width,
             n_iters=args.n_iters,
-            regularizer=RademacherComplexity(),
-            input_max=input_max,
+            regularizer=RademacherComplexity,
+            r_inf=r_inf,
             batch_size=args.batch_size,
         )
     else:
