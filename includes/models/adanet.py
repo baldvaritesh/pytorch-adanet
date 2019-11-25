@@ -6,79 +6,9 @@ from torch import nn
 from torch.autograd import Variable
 from torch.nn import functional as F
 
-from .model import Model
 from ..optimizers import SGD
+from .model import Model, Network
 from ..utils import RademacherComplexity
-
-
-class Layer(nn.Module):
-    def __init__(self, input_dim, output_dim, weights=None):
-        super(Layer, self).__init__()
-
-        if weights is None:
-            self.W = nn.Parameter(
-                torch.randn(input_dim, output_dim) / np.sqrt(input_dim),
-                requires_grad=True,
-            )
-        else:
-            assert weights.shape == torch.size((input_dim, output_dim))
-            self.W = nn.Parameter(weights)
-
-    def forward(self, data, split=False):
-        if split:
-            a, b = data
-
-            split = a.shape[1]
-            return torch.mm(a, self.W[:split, ...]) + torch.mm(b, self.W[split:, ...])
-
-        return torch.mm(data, self.W)
-
-
-class Network(nn.Module):
-    def __init__(self, activation_fn, input_dim, layer_dims, output_dim):
-        super(Network, self).__init__()
-
-        self.input_dim = input_dim
-        self.activation_fn = activation_fn
-
-        self.layers = nn.ModuleList([Layer(dims[0], dims[1]) for dims in layer_dims])
-
-        last_dim = layer_dims[-1][1]
-        self.weights = nn.Parameter(
-            torch.randn((last_dim, output_dim)) / np.sqrt(last_dim), requires_grad=True
-        )
-        self.exposed = [0] * (len(layer_dims) - 1) + [last_dim]
-
-    def detach(self):
-        for param in self.parameters():
-            param.requires_grad = False
-            param.grad = None
-
-    def forward(self, x, return_all=False):
-        if not self.layers:
-            if return_all:
-                return 0, []
-            else:
-                return 0
-
-        x = x.reshape(-1, self.input_dim)
-
-        outs = list()
-        for layer in self.layers:
-            x = layer(self.activation_fn(x))
-
-            outs.append(x)
-
-        output = outs[-1][:, : self.exposed[-1]]
-        for i in range(len(outs) - 2, -1, -1):
-            output = torch.cat((outs[i][:, : self.exposed[i]], output), dim=1)
-
-        output = torch.mm(output, self.weights)
-
-        if return_all:
-            return output, outs
-
-        return output
 
 
 class AdaNet(Model):
@@ -104,32 +34,27 @@ class AdaNet(Model):
         self.output_dim = output_dim
         self.activation_fn = activation_fn
         if regularizer:
-            if regularizer == RademacherComplexity:
-                if r_inf is None:
-                    raise ValueError(
-                        "The argument r_inf cannot be None if regularizer is RademacherComplexity"
-                    )
-                if batch_size is None:
-                    raise ValueError(
-                        "The argument batch_size cannot be None if regularizer is RademacherComplexity"
-                    )
-
-                self.loss_fn = RademacherComplexity(
-                    model=self,
-                    dims=(batch_size, input_dim),
-                    r_inf=r_inf,
-                    loss_fn=loss_fn,
-                    gamma=gamma,
-                )
-            else:
+            if r_inf is None:
                 raise ValueError(
-                    "regularizer must be an instance of RademacherComplexity"
+                    "The argument r_inf cannot be None if regularizer is not None"
                 )
+            if batch_size is None:
+                raise ValueError(
+                    "The argument batch_size cannot be None if regularizer is not None"
+                )
+
+            self.loss_fn = regularizer(
+                model=self,
+                dims=(batch_size, input_dim),
+                r_inf=r_inf,
+                loss_fn=loss_fn,
+                gamma=gamma,
+            )
         else:
             self.loss_fn = loss_fn
 
         self.network = Network(
-            activation_fn, input_dim, [(input_dim, width)], output_dim
+            activation_fn, input_dim, [(input_dim, 1000)], output_dim
         )
 
     def generate_subnetwork(self, depth):
@@ -254,12 +179,18 @@ class AdaNet(Model):
         self.add_subnetwork(candidate_networks[best_subnet])
         self.to(device)
 
-        self.width = self.width * 2
+        if log:
+            logging.info(
+                "Train Epoch: {:3d} \t Network: "
+                + ",".join([str(l.W.shape[1]) for l in self.network.layers])
+            )
+
+        self.width = min(self.width * 2, 128)
 
         return losses[best_subnet]
 
     def forward(self, x):
-        output = self.network.forward(x)
+        output = self.network(x)
         output = F.log_softmax(output, dim=1)
 
         return output

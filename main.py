@@ -152,7 +152,17 @@ def main(args):
     if args.model == "cnn":
         model = CNN("cnn", loss_fn=F.nll_loss)
     elif args.model == "nn":
-        model = NN("nn", loss_fn=F.nll_loss, input_dim=input_dim, output_dim=output_dim)
+        model = NN(
+            "nn",
+            loss_fn=F.nll_loss,
+            input_dim=input_dim,
+            output_dim=output_dim,
+            regularizer=RademacherComplexity,
+            r_inf=r_inf,
+            gamma=args.gamma,
+            batch_size=args.batch_size,
+        )
+        print(model)
     elif args.model == "adanet":
         model = AdaNet(
             "adanet",
@@ -181,7 +191,7 @@ def main(args):
             model, lr=args.lr, decay_rate=args.decay_rate, decay_steps=args.decay_steps
         )
     elif args.optimizer == "d-sgd":
-        optimizer = DefaultWrapper(model, optim.SGD, lr=args.lr)
+        optimizer = DefaultWrapper(model, optim.SGD, lr=args.lr, momentum=0.9)
     else:
         raise NotImplementedError
 

@@ -27,6 +27,8 @@ class RademacherComplexity:
 
         self.gamma = gamma * r_inf * np.sqrt(np.log(2 * dims[1]) / (2 * dims[0]))
 
+        print(self.gamma / gamma)
+
         self.loss_fn = loss_fn
 
     def compute_layer_complexity(self, n_layer):
